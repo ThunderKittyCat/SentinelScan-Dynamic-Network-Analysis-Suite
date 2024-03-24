@@ -28,6 +28,8 @@ Follow the on-screen instructions to input the network to scan and select the sc
 * Nmap (Tested on Nmap version 7.80)
 * Hydra (Tested on Hydra version 9.1)
 
+## Disclaimer: This script is provided for educational and informational purposes only. The authors do not encourage or condone any illegal activities. Users are solely responsible for any actions performed using this script.
+
 ## License
 This project is licensed under the MIT License
 
