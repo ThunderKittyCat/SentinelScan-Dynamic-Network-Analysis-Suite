@@ -1,0 +1,391 @@
+#!/bin/bash
+
+# Store the current directory in a variable
+current_dir=$(pwd)
+
+function color_functions() {
+  color_red() {
+    echo -e "\e[91m$1\e[0m"
+  }
+
+  color_blue() {
+    echo -e "\e[94m$1\e[0m"
+  }
+
+  color_green() {
+    echo -e "\e[32m$1\e[0m"
+  }
+
+  color_gold() {
+    echo -e "\e[93m$1\e[0m"
+  }
+
+  color_purple() {
+    echo -e "\e[95m$1\e[0m"
+  }
+
+  color_dark_green() {
+    echo -e "\e[92m$1\e[0m"
+  }
+
+  color_dark_blue() {
+    echo -e "\e[38;5;22m$1\e[0m"
+  }
+
+  color_dark_red() {
+    echo -e "\e[31m$1\e[0m"
+  }
+
+  color_dark_purple() {
+    echo -e "\e[35m$1\e[0m"
+  }
+
+  color_orange() {
+    echo -e "\e[33m$1\e[0m"
+  }
+
+  color_brown() {
+    echo -e "\e[33m$1\e[0m"
+  }
+
+  color_black() {
+    echo -e "\e[30m$1\e[0m"
+  }
+
+  color_white() {
+    echo -e "\e[97m$1\e[0m"
+  }
+
+  color_yellow() {
+    echo -e "\e[38;5;220m$1\e[0m"
+  }
+
+  color_aqua() {
+    echo -e "\e[96m$1\e[0m"
+  }
+
+  color_cyan() {
+    echo -e "\e[36m$1\e[0m"
+  }
+
+  color_pink() {
+    echo -e "\e[95m$1\e[0m"
+  }
+
+  color_magenta() {
+    echo -e "\e[95m$1\e[0m"
+  }
+
+  color_gray() {
+    echo -e "\e[90m$1\e[0m"
+  }
+
+  color_dark_gray() {
+    echo -e "\e[2m$1\e[0m"
+  }
+
+  color_light_blue() {
+    echo -e "\e[94m$1\e[0m"
+  }
+
+  color_lime() {
+    echo -e "\e[92m$1\e[0m"
+  }
+
+  color_light_gray() {
+    echo -e "\e[37m$1\e[0m"
+  }
+}
+color_functions
+
+function format_functions() {
+	format_bold() {
+		echo -e "\e[1m$1\e[0m"
+	}
+	format_tilt() {
+		echo -e "\e[3m$1\e[0m"
+	}
+	format_underline() {
+		echo -e "\e[4m$1\e[0m"
+	}
+	format_blink() {
+		echo -e "\e[5m$1\e[0m"
+	}
+	format_inverted() {
+		echo -e "\e[7m$1\e[0m"
+	}
+}
+format_functions
+
+# Function to display a colored and stylized header
+function display_header() {
+    # ANSI color codes
+    RED='\033[1;31m'
+    GREEN='\033[1;32m'
+    YELLOW='\033[1;33m'
+    RESET='\033[0m'  # Reset to default color
+
+    # Figlet font
+    FIGLET_FONT="slant"
+
+    # Clear the screen
+    clear
+
+    # Display the header
+    echo -e "${RED}"
+    figlet -f ${FIGLET_FONT} "Network Scanner"
+    echo -e "${RESET}"
+    echo -e "${GREEN}by Thunder${RESET}"
+    echo -e "${YELLOW}-----------------------------------------${RESET}"
+}
+display_header
+
+function progress_bar() {
+  local duration=$1
+  local bar_length=20
+
+  for ((i=0; i<=duration; i++)); do
+    local filled=$(printf "%-$((i*bar_length/duration))s" | tr ' ' '=')
+    local remaining=$(printf "%-$(((duration-i)*bar_length/duration))s" | tr ' ' '-')
+    printf "\r[%s%s] %d%%" "$filled" "$remaining" "$((i * 100 / duration))"
+    sleep 1
+  done
+  printf "\n"
+}
+
+function hydra_common_password_check() {
+  local target_host="$1"
+  local target_port="$2"
+
+  echo "$(format_bold "$(color_blue "Running Hydra for common password check...")")"
+  # Predefined lists
+  common_users=("admin" "root" "user" "guest" "msfadmin")
+  common_passwords=("password" "123456" "admin" "letmein" "msfadmin" "qwerty" "123456789" "abc123" "111111" "123123" "admin123" "admin@123" "adminadmin" "admin1234" "admin@1234" "adminadmin123" "adminadmin@123" "admin12345" "admin@12345" "adminadmin12345" "adminadmin@12345" "password123" "password@123" "password1234" "password@1234" "password12345" "password@12345")
+
+  # Create temporary files for user and password lists
+  user_list_file=$(mktemp)
+  password_list_file=$(mktemp)
+
+  # Write the predefined lists to the temporary files
+  printf "%s\n" "${common_users[@]}" > "$user_list_file"
+  printf "%s\n" "${common_passwords[@]}" > "$password_list_file"
+  
+  local valid_input=false
+
+  while [ "$valid_input" == false ]; do
+    read -p "$(format_bold "$(color_blue "Do you want to use a predefined password list? (yes/no): ")")" use_predefined_list
+    
+    if [ "$use_predefined_list" == "yes" ]; then
+      # Run Hydra with the predefined_list
+      hydra -L "$user_list_file" -P "$password_list_file" "$target_port"://"$target_host" -v > logs/$output_directory/$target_port.password.check.predefined_list 2>&1
+      echo "$(format_bold "[!] Results for check are saved in --> logs/$output_directory/$target_port.password.check.predefined_list")"
+      valid_input=true
+    elif [ "$use_predefined_list" == "no" ]; then
+      # Ask the user for a password list
+      read -p "Enter the path to the password list: " password_list_from_user
+
+      # Check if the file exists
+      if [ -f "$password_list_from_user" ]; then
+        # Run Hydra with the given password list
+        hydra -L "$user_list_file" -P "$password_list_from_user" "$target_port"://"$target_host" -v > logs/$output_directory/$target_port.password.check.from.user 2>&1
+        echo "$(format_bold "[!] Results for check are saved in --> logs/$output_directory/$target_port.password.check.from.user")"
+        valid_input=true
+      else
+        echo "$(format_bold "$(color_red "Error: Password list not found.")")"
+      fi
+    else
+      echo "$(format_bold "$(color_red "Invalid input. Please enter either 'yes' or 'no'.")")"
+    fi
+  done
+
+  # Remove temporary files
+  rm -f "$user_list_file" "$password_list_file"
+}
+
+# Function to perform the Basic scan
+function perform_basic_scan() {
+  sleep 1
+  
+  Basic_message="Running Basic scan..."
+  echo "$(format_bold "$Basic_message")"
+  sleep 1
+  
+  # Scanning TCP services
+  TCP_message="Scanning TCP services..."
+  echo "$(format_bold "$(color_blue "$TCP_message")")"
+  nmap --open -sV -T5 "$network" -oN "logs/$output_directory/basic_service_version_scan.txt" > /dev/null 2>&1 &
+  progress_bar 10 
+  # Run the progress bar for the first scan
+  wait  # Wait for the first background process to finish 
+
+  # Scanning UDP services
+  UDP_message="Scanning UDP services..."
+  echo "$(format_bold "$(color_blue "$UDP_message")")"
+  
+  sudo nmap -p U:53,67,123,137,161 --open -sU -T3 "$network" -oN "logs/$output_directory/basic_udp_scan.txt" > /dev/null 2>&1 &
+  progress_bar 3
+  # Run the progress bar for the second scan
+  wait  # Wait for the second background process to finish
+  
+  # Check for weak credentials
+  hydra_common_password_check "$network" ftp 
+  hydra_common_password_check "$network" ssh 
+  hydra_common_password_check "$network" telnet  
+  hydra_common_password_check "$network" rdp 
+}
+
+# Function to perform the Full scan
+function perform_full_scan() {
+  sleep 1
+  
+  Full_message="Running Full scan..."
+  echo "$(format_bold "$Full_message")"
+  sleep 1
+  
+  # Scanning TCP services
+  TCP_message="Scanning TCP services..."
+  echo "$(format_bold "$(color_blue "$TCP_message")")"
+  nmap --open -sV -T5 "$network" -oN "logs/$output_directory/full_service_version_scan.txt" > /dev/null 2>&1 &
+  progress_bar 15
+  # Run the progress bar for the first scan
+  wait  # Wait for the first background process to finish 
+
+  # Scanning UDP services
+  UDP_message="Scanning UDP services..."
+  echo "$(format_bold "$(color_blue "$UDP_message")")"
+  
+  sudo nmap -p U:53,67,123,137,161 --open -sU -T3 "$network" -oN "logs/$output_directory/full_udp_scan.txt" > /dev/null 2>&1 &
+  progress_bar 8
+  # Run the progress bar for the second scan
+  wait  # Wait for the second background process to finish
+  
+  # 1.3.2 Full: include Nmap Scripting Engine (NSE), weak passwords, and vulnerability analysis.
+  # Using NSE scripts to get vulnerablity analysis ૮ ˶ᵔ ᵕ ᵔ˶ ა
+  echo "$(format_bold "This might take a while...")"
+  nmap "$network" --script=vuln -T5 -oN "logs/$output_directory/full_vulnerability_Analysis_scan.txt" > /dev/null 2>&1 
+  echo "$(format_bold "Vuln Scan Over!")"
+  echo "$(format_bold "$(color_purple "Scan is saved in: logs/$output_directory/full_vulnerability_Analysis_scan.txt")")" 
+
+  # Check for weak credentials
+  hydra_common_password_check "$network" ftp 
+  hydra_common_password_check "$network" ssh 
+  hydra_common_password_check "$network" telnet  
+  hydra_common_password_check "$network" rdp 
+}
+
+# Remove the logs folder, in case it was already existing before. Removing it would solve some issues with the code, and provide a whole restart for a second run of the script
+function rm_logs_if_exist() {
+	# Check if the "logs" directory exists
+	if [ -d "logs" ]; then
+		echo "$(format_bold "$(color_green "[#] Removing the logs directory for more use of the script...")")"
+		sudo rm -r "logs"
+		sleep 1
+	fi
+}
+
+# 1.1 Get from the user a network to scan.
+function get_network_from_usr() {
+	message="Enter the network to scan (e.g., 192.168.1.0/24): "
+	read -p "$(format_bold "$message")" network; sleep 1
+
+    # Validate the input (you can customize this validation as needed)
+	if [[ ! ($network =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]+)?$) ]]; then
+		error_message="Error: Invalid network format. Please use a valid IP address (e.g., 192.168.1.1) or CIDR notation (e.g., 192.168.1.0/24)."
+		echo "$(format_bold "$(color_red "$error_message")")"
+		exit 1
+	fi
+
+	# Print the entered network for verification
+	confirmation_message="You entered the network: $network"
+	echo "$(format_bold "$(color_dark_green "$confirmation_message")")"
+}
+
+function name_for_network_output() {
+	#1.2 Get from the user a name for the output directory.
+	
+	sleep 1
+	message="Enter a name for the output directory: "
+	read -p "$(format_bold "$message")" directory; sleep 1
+	if [ -d "$directory" ]; then
+		echo "$(format_bold "$(color_green "[#] Removing the already existing directory for more use of the script...")")"
+		sudo rm -r "$directory"
+		sleep 1
+	fi
+	local mkdir $directory &>/dev/null
+	sleep 2
+	echo "."; sleep 1
+	echo "."; sleep 1
+	echo "."; sleep 2
+}
+
+function choose_scan_type() {
+  message="Select the scan type (e.g., 1,2):"
+  echo "$(format_bold "$message")"
+  options=("Basic" "Full")
+  select scan_type in "${options[@]}"; do
+    case $scan_type in
+      "Basic")
+		message_basic="You selected Basic scan."
+        echo "$(format_bold "$(format_blink "$(color_gold "$message_basic")")")"
+        perform_basic_scan
+        break
+        ;;
+      "Full")
+		message_full="You selected Full scan."
+        echo "$(format_bold "$(format_blink "$(color_gold "$message_full")")")"
+        perform_full_scan
+        break
+        ;;
+      *)
+		error_message="Invalid option. Please choose a valid option."
+        echo "$(format_bold "$(color_red "$error_message")")"
+        ;;
+    esac
+  done
+}
+
+main() {
+	display_header
+	# Record the start time
+	start_time=$(date +%Y-%m-%d\ %H:%M:%S)
+	
+	
+	rm_logs_if_exist
+	mkdir logs &>/dev/null # Make a log folder for all the different logs
+	
+	get_network_from_usr
+	name_for_network_output
+	choose_scan_type
+	
+	
+	# Record the end time
+	end_time=$(date +%Y-%m-%d\ %H:%M:%S)
+	# Calculate the duration of the analysis
+	analysis_duration=$(($(date -d "$end_time" +%s) - $(date -d "$start_time" +%s)))
+	
+	# Display general statistics
+	echo "$(format_bold "Analysis Start Time: $start_time")"
+	echo "$(format_bold "Analysis End Time: $end_time")"
+	echo "$(format_bold "Analysis Duration: $analysis_duration seconds")"
+
+
+	touch "$current_dir/analysis_report.txt"
+	# Save the statistics to a report file
+	echo "$(format_bold "$(color_red "[!] Analysis Start Time: $start_time")")" > "$current_dir/analysis_report.txt"; sleep 1
+	echo "$(format_bold "$(color_red "[!] Analysis End Time: $end_time")")" >> "$current_dir/analysis_report.txt"; sleep 1
+	echo "$(format_bold "$(color_red "[!] Analysis Duration: $analysis_duration seconds")")" >> "$current_dir/analysis_report.txt"; sleep 1
+	
+	echo "$(format_bold "$(color_purple "[!] The Potential Vulnerabilities Can Be Seen In logs/$output_directory/full_vulnerability_Analysis_scan.txt")")"
+	
+	zip_message="[?] Would You Like To Zip The Results?(e.g., yes/no): "
+	
+	# Ask the user for a password list
+    read -p "$(format_bold "$(color_red "$zip_message")")" zip_file_from_user
+    
+    if [ "$zip_file_from_user" == "yes" ]; then
+		zip -r "$current_dir/analysis_results.zip" "$current_dir/logs" "$current_dir/analysis_report.txt" &>/dev/null
+		echo "$(format_bold "$(color_green "[!] Results have been zipped.")")"
+	fi
+	mv logs "$directory"
+}
+main
